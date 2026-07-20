@@ -35,7 +35,7 @@ jobs:
           body: |
             **Minecraft 26.1.2 – 26.x | Fabric and NeoForge**
 
-            A button on the underside of a waterlogged block acts as a fire sprinkler: fire in the spray cone below is put out like rain, with hiss and steam, and burning mobs are extinguished too. Server-side only — no client mod required.
+            A button on the underside of a waterlogged block (or a block below a water source) acts as a fire sprinkler: fire in the spray cone below is put out like rain, with hiss and steam, and burning mobs are extinguished too. Server-side/standalone only — no client mod required.
 
             - `firesprinkler-fabric-${{ github.ref_name }}.jar` — Fabric (requires Fabric API)
             - `firesprinkler-neoforge-${{ github.ref_name }}.jar` — NeoForge

@@ -8,12 +8,12 @@
     "_gid"
   ],
   "contact": {
-    "homepage": "https://github.com/tomgidden/minecraft-fire-sprinkler",
-    "sources": "https://github.com/tomgidden/minecraft-fire-sprinkler"
+    "homepage": "https://github.com/tomgidden/minecraft-firesprinkler",
+    "sources": "https://github.com/tomgidden/minecraft-firesprinkler"
   },
   "icon": "icon.png",
   "license": "MIT",
-  "environment": "server",
+  "environment": "*",
   "mixins": [
     "firesprinkler.mixins.json"
   ],
