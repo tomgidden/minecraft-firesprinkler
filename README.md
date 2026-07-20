@@ -18,13 +18,13 @@ Players connect with a completely unmodified vanilla client.
 Requires the correct [fabric-api jar](https://modrinth.com/mod/fabric-api) on
 the server.
 
-Copy [`firesprinkler-fabric-26.1.jar`](https://github.com/tomgidden/minecraft-fire-sprinkler/releases) to the server's `mods/` folder.
+Copy [`firesprinkler-fabric-….jar`](https://github.com/tomgidden/minecraft-fire-sprinkler/releases) to the server's `mods/` folder.
 
 ### NeoForge servers
 
 Requires [NeoForge](https://neoforged.net/) on the server. No other mods needed.
 
-Copy [`firesprinkler-neoforge-26.1.jar`](https://github.com/tomgidden/minecraft-fire-sprinkler/releases) to the server's `mods/` folder.
+Copy [`firesprinkler-neoforge-….jar`](https://github.com/tomgidden/minecraft-fire-sprinkler/releases) to the server's `mods/` folder.
 
 ## Usage
 
