@@ -18,13 +18,13 @@ Players connect with a completely unmodified vanilla client.
 Requires the correct [fabric-api jar](https://modrinth.com/mod/fabric-api) on
 the server.
 
-Copy [`firesprinkler-fabric-….jar`](https://github.com/tomgidden/minecraft-fire-sprinkler/releases) to the server's `mods/` folder.
+Copy [`firesprinkler-fabric-….jar`](https://github.com/tomgidden/minecraft-firesprinkler/releases) to the server's `mods/` folder.
 
 ### NeoForge servers
 
 Requires [NeoForge](https://neoforged.net/) on the server. No other mods needed.
 
-Copy [`firesprinkler-neoforge-….jar`](https://github.com/tomgidden/minecraft-fire-sprinkler/releases) to the server's `mods/` folder.
+Copy [`firesprinkler-neoforge-….jar`](https://github.com/tomgidden/minecraft-firesprinkler/releases) to the server's `mods/` folder.
 
 ## Usage
 
@@ -149,7 +149,7 @@ In short, you may freely use this mod in any modpack, but just don't claim you
 made it. No promises, no warranties, so don't blame me if it breaks anything or
 disadvantages you in some way, or you believe it did.
 
-[Comments and improvements welcome.](https://github.com/tomgidden/minecraft-fire-sprinkler)
+[Comments and improvements welcome.](https://github.com/tomgidden/minecraft-firesprinkler)
 
 -- `_gid`
 
