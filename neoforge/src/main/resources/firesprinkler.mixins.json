@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "cx.gid.minecraft.firesprinkler.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "FireBlockMixin",
+    "EntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

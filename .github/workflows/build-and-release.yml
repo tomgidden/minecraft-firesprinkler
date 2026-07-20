@@ -1,0 +1,45 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - '[0-9]*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build
+        run: ./gradlew :fabric:build :neoforge:build
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Fire Sprinkler ${{ github.ref_name }}
+          body: |
+            **Minecraft 26.1.2 – 26.x | Fabric and NeoForge**
+
+            A button on the underside of a waterlogged block acts as a fire sprinkler: fire in the spray cone below is put out like rain, with hiss and steam, and burning mobs are extinguished too. Server-side only — no client mod required.
+
+            - `firesprinkler-fabric-${{ github.ref_name }}.jar` — Fabric (requires Fabric API)
+            - `firesprinkler-neoforge-${{ github.ref_name }}.jar` — NeoForge
+          files: |
+            fabric/build/libs/firesprinkler-fabric-${{ github.ref_name }}.jar
+            neoforge/build/libs/firesprinkler-neoforge-${{ github.ref_name }}.jar
+          fail_on_unmatched_files: true

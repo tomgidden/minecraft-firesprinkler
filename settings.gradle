@@ -1,0 +1,14 @@
+pluginManagement {
+    repositories {
+        maven { name = 'Fabric'; url = 'https://maven.fabricmc.net/' }
+        maven { name = 'NeoForge'; url = 'https://maven.neoforged.net/releases/' }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'fire-sprinkler'
+
+include 'common'
+include 'fabric'
+include 'neoforge'
