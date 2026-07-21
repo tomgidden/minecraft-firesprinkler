@@ -6,7 +6,6 @@ import cx.gid.minecraft.firesprinkler.SprinklerDebug;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.FireBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -28,27 +27,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * a fire out under a roof (which is exactly where a sprinkler lives). Instead we
  * run our own extinguish check at the top of {@code tick}.
  *
- * Unlike vanilla rain, which only rolls its {@code 0.2 + age*0.03}
- * chance on the fire's own 30-39-tick cadence, and slower still because a rained
- * fire never ages: a sprinkler is meant to douse briskly. So we use a
- * configurable flat {@link SprinklerConfig#extinguishChance} per check, and
- * reschedule the fire's next tick at {@link SprinklerConfig#checkInterval}
- * (default every 10 ticks) while it is under spray so the checks come faster than
- * vanilla would allow. We inject just after the {@code scheduleTick} call so a
- * missed roll still leaves the fire scheduled to re-check, then cancel the rest
- * of vanilla's tick so the fire neither ages nor spreads while it is being
- * sprayed. Each successful extinguish plays level event {@code 1009}
+ * Vanilla rain rolls {@code 0.2 + age*0.03}, and slower still because a rained
+ * fire never ages. A sprinkler is meant to douse briskly, so we use a
+ * configurable flat {@link SprinklerConfig#extinguishChance} instead. 
+ * 
+ * Burning entities do not go through here at all: {@code Entity.tick} consults 
+ * {@code isInRain} every tick, so mobs are doused within one tick of entering 
+ * the spray.)
+ *
+ * Each successful extinguish plays level event {@code 1009}
  * ({@code FIRE_EXTINGUISH} sound) plus a puff of white {@code CLOUD} steam,
  * which vanilla rain does silently, so it reads as water hitting flame.
- *
- * Cancelling the sprayed fire's own tick stops _it_ from spreading, but a burning
- * _neighbour_ outside the cone still runs its full tick and will happily
- * re-ignite cells inside the cone (vanilla only blocks that when it is actually
- * raining there). That produced the "hear the hiss but the fire comes straight
- * back" symptom. So we also redirect the spread loop's {@code getIgniteOdds}
- * probe to report zero ignition odds for any target cell under an active
- * sprinkler, which suppresses re-ignition into the sprayed area exactly the way
- * rain suppresses spread into rained-on cells.
  */
 @Mixin(FireBlock.class)
 public abstract class FireBlockMixin {
@@ -82,7 +71,7 @@ public abstract class FireBlockMixin {
         if (random.nextFloat() < chance) {
             SprinklerDebug.log("fizzle: removing sprinkler-covered fire at {} (age {}, chance {})",
                 pos, age, chance);
-                
+
             // 1009 (data 0) = FIRE_EXTINGUISH sound with no particles; we add our
             // own white CLOUD steam so it reads as water-on-flame, not sooty smoke.
             level.levelEvent(null, 1009, pos, 0);
@@ -98,11 +87,9 @@ public abstract class FireBlockMixin {
         SprinklerDebug.log("sprinkler over fire at {} (age {}, chance {}): missed this check",
             pos, age, chance);
 
-        // Missed this check, but the fire is being sprayed: skip vanilla's aging
-        // and spread for this tick (as rain does), and reschedule the next check
-        // at our own faster interval so it doesn't have to wait the full 30-39
-        // tick vanilla fire cadence to try again.
-        level.scheduleTick(pos, (Block) (Object) this, config.checkInterval);
+        // Skip vanilla's aging and spread for this tick, as rain does. 
+        // Vanilla already scheduled the next tick (30-39 away) before we were 
+        // called.
         ci.cancel();
     }
 

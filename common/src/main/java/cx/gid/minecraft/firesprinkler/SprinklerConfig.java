@@ -28,8 +28,6 @@ public final class SprinklerConfig {
     public final int maxDepth;
     /** Per-check probability that a sprayed fire is extinguished (replaces vanilla's 0.2+age*0.03). */
     public final double extinguishChance;
-    /** Game ticks between extinguish checks on a fire under spray (vanilla fire re-ticks every ~30-39). */
-    public final int checkInterval;
     /** When true, the mod logs detection/extinguish diagnostics to the server console. */
     public final boolean debug;
 
@@ -37,12 +35,11 @@ public final class SprinklerConfig {
     public final float steamSpread;
     public final float steamSpeed;
 
-    private SprinklerConfig(int baseRadius, int maxRadius, int maxDepth, double extinguishChance, int checkInterval, int steamSize, float steamSpread, float steamSpeed, boolean debug) {
+    private SprinklerConfig(int baseRadius, int maxRadius, int maxDepth, double extinguishChance, int steamSize, float steamSpread, float steamSpeed, boolean debug) {
         this.baseRadius = baseRadius;
         this.maxRadius = maxRadius;
         this.maxDepth = maxDepth;
         this.extinguishChance = extinguishChance;
-        this.checkInterval = checkInterval;
         this.debug = debug;
 
         this.steamSize = steamSize;
@@ -57,10 +54,10 @@ public final class SprinklerConfig {
     private static final int DEFAULT_MAX_RADIUS = 5;
     private static final int DEFAULT_MAX_DEPTH = 16;
 
-    // A brisk sprinkler: 100% per check, and checked every 10 ticks (twice a
-    // second) rather than waiting on the 30-39-tick vanilla fire cadence.
+    // Checks happen on vanilla's own 30-39 tick fire cadence, so this is what
+    // decides how brisk a sprinkler feels: 0.8 puts a fire out in a check or
+    // two, 1.0 on the first.
     private static final double DEFAULT_EXTINGUISH_CHANCE = 0.8;
-    private static final int DEFAULT_CHECK_INTERVAL = 10;
 
     private static final int DEFAULT_STEAM_SIZE = 32;
     private static final float DEFAULT_STEAM_SPREAD = 0.5F;
@@ -100,7 +97,6 @@ public final class SprinklerConfig {
         int maxDepth = readInt(props, "max_depth", DEFAULT_MAX_DEPTH, 1, 512);
         
         double extinguishChance = readDouble(props, "extinguish_chance", DEFAULT_EXTINGUISH_CHANCE, 0.0, 1.0);
-        int checkInterval = readInt(props, "check_interval", DEFAULT_CHECK_INTERVAL, 1, 200);
 
         int steamSize = readInt(props, "steam_size", DEFAULT_STEAM_SIZE, 0, 32);
         float steamSpread = (float)readDouble(props, "steam_spread", DEFAULT_STEAM_SPREAD, 0.0F, 1.0F);
@@ -109,8 +105,8 @@ public final class SprinklerConfig {
         boolean debug = Boolean.parseBoolean(props.getProperty("debug", "false").trim());
 
         SprinklerConfig config = new SprinklerConfig(
-            baseRadius, maxRadius, maxDepth, 
-            extinguishChance, checkInterval, 
+            baseRadius, maxRadius, maxDepth,
+            extinguishChance,
             steamSize, steamSpread, steamSpeed,
             debug
         );
@@ -130,8 +126,13 @@ public final class SprinklerConfig {
         }
         try {
             int value = Integer.parseInt(raw.trim());
-            return Math.max(min, Math.min(max, value));
+            int clamped = Math.max(min, Math.min(max, value));
+            if (clamped != value) {
+                SprinklerDebug.warn("config {}: {} is outside {}..{}, clamped to {}", key, value, min, max, clamped);
+            }
+            return clamped;
         } catch (NumberFormatException e) {
+            SprinklerDebug.warn("config {}: '{}' is not a whole number, using {}", key, raw.trim(), fallback);
             return fallback;
         }
     }
@@ -143,8 +144,13 @@ public final class SprinklerConfig {
         }
         try {
             double value = Double.parseDouble(raw.trim());
-            return Math.max(min, Math.min(max, value));
+            double clamped = Math.max(min, Math.min(max, value));
+            if (clamped != value) {
+                SprinklerDebug.warn("config {}: {} is outside {}..{}, clamped to {}", key, value, min, max, clamped);
+            }
+            return clamped;
         } catch (NumberFormatException e) {
+            SprinklerDebug.warn("config {}: '{}' is not a number, using {}", key, raw.trim(), fallback);
             return fallback;
         }
     }
@@ -158,7 +164,6 @@ public final class SprinklerConfig {
                 props.setProperty("max_radius", Integer.toString(config.maxRadius));
                 props.setProperty("max_depth", Integer.toString(config.maxDepth));
                 props.setProperty("extinguish_chance", Double.toString(config.extinguishChance));
-                props.setProperty("check_interval", Integer.toString(config.checkInterval));
                 props.setProperty("debug", Boolean.toString(config.debug));
                 props.store(out,
                     "Fire Sprinkler spray-cone limits.\n"
@@ -166,7 +171,6 @@ public final class SprinklerConfig {
                     + "max_radius:        radius the cone widens to before it stops widening (5 = 11x11).\n"
                     + "max_depth:         deepest level below the button the spray can reach, in blocks.\n"
                     + "extinguish_chance: probability (0.0-1.0) a sprayed fire is put out per check (1.0 = instant).\n"
-                    + "check_interval:    game ticks between extinguish checks on a sprayed fire (20 = 1 second).\n"
                     + "debug:             true to log detection/extinguish diagnostics to the server console.");
             }
         } catch (IOException ignored) {

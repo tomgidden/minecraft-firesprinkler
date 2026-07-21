@@ -29,4 +29,16 @@ public final class SprinklerDebug {
             LOGGER.info("[firesprinkler] " + format, args);
         }
     }
+
+    /**
+     * Logs a formatted message at WARN regardless of the debug flag, for
+     * problems an operator needs to see (a malformed config value, say).
+     *
+     * Deliberately does not consult {@link #enabled()}: this is called from
+     * {@link SprinklerConfig#load()} while the config is still being built, so
+     * asking for the flag would re-enter the loader.
+     */
+    public static void warn(String format, Object... args) {
+        LOGGER.warn("[firesprinkler] " + format, args);
+    }
 }

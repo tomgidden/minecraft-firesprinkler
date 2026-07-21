@@ -18,18 +18,18 @@ Players connect with a completely unmodified vanilla client.
 Requires the correct [fabric-api jar](https://modrinth.com/mod/fabric-api) on
 the server.
 
-Copy [`firesprinkler-fabric-….jar`](https://github.com/tomgidden/minecraft-firesprinkler/releases) to the server's `mods/` folder.
+Copy [`firesprinkler-fabric-X.XX.jar`](https://github.com/tomgidden/minecraft-firesprinkler/releases) to the server's `mods/` folder.
 
 ### NeoForge servers
 
 Requires [NeoForge](https://neoforged.net/) on the server. No other mods needed.
 
-Copy [`firesprinkler-neoforge-….jar`](https://github.com/tomgidden/minecraft-firesprinkler/releases) to the server's `mods/` folder.
+Copy [`firesprinkler-neoforge-X.XX.jar`](https://github.com/tomgidden/minecraft-firesprinkler/releases) to the server's `mods/` folder.
 
 ## Usage
 
 1. Place a block and make it a **water supply**: either waterlog it (e.g. a
-   waterlogged slab, stairs, fence) or put water above it[^1]
+   waterlogged slab, stairs, fence, grate, leaves) or put water above it﹡
 2. Place a **button on the underside** of that block, so the button hangs from
    the ceiling. (Any button type works.)
 
@@ -42,9 +42,17 @@ Because it is *fire-triggered*, an armed sprinkler does *not* hydrate
 farmland, drip from leaves, fill cauldrons, or boost fishing the way standing
 rain would. It only acts when there is something to put out.
 
-[^1]: actually you can put the water above the solid block above *that* instead,
+﹡: actually you can put the water above the solid block above *that* instead,
 ie. two solid blocks above the button, with water above those.  That way,
 client-side water drips can be avoided without resorting to using glass blocks.
+So, a tidy solution is a waterlogged grate or leaf block, above two stone blocks,
+above a button.
+
+If you don't mind the visual drips, it can just be one stone block between,
+or even just a waterlogged grate with a button.  Mangrove roots and copper
+grates are good for this because unlike most other waterlogged blocks like
+slabs, they'll contain the water without flooding, *and* unlike leaves,
+buttons can be placed under them.
 
 ### The spray cone
 
@@ -58,11 +66,28 @@ The spray widens as it falls, like a real sprinkler head, then is confined:
 | 3 below                | 9×9                                  |
 | 4 or more below        | 11×11 (until the depth limit)        |
 
-The spray falls **straight down**: a fire is only reached if there is no solid
-"floor" directly above it, up to the sprinkler's level. A floor is anything
-that stops falling water the way a roof stops rain — full blocks, slabs,
-stairs, fences, closed trapdoors. Open trapdoors, string, torches, carpets,
-flowers, and water/waterlogged blocks all let the spray through.
+Water has to be able to reach a spot for it to be sprayed, so a "floor" between
+the sprinkler and a fire shelters it. A floor is anything that stops falling
+water the way a roof stops rain — full blocks, slabs, stairs, fences, closed
+trapdoors. Open trapdoors, string, torches, carpets, flowers, and
+water/waterlogged blocks all let the spray through.
+
+Note the spray currently spreads sideways by up to a block per level as it
+falls, rather than falling straight down. A fire tucked under a *single*
+sheltering block can therefore still be reached from the gap beside it, and a
+hole in a ceiling wets a wider area below than the hole itself. This is known
+over-reach rather than intended behaviour, and will tighten to a true cone.
+
+### What it *actually* does
+
+Due to the way Minecraft data is structured, it'd be inefficient to start from
+the sprinklers and find fires to extinguish. Instead, we start at the fires and
+work upwards to find any sprinklers that could existinguish them.  This means
+that the cone is reversed.  As a result, the sprinklers tend to extinguish
+more than you'd expect from the definition, working around obstructions.
+
+It seems to roughly work and it doesn't seem unusual. You can hand-wave it as
+the sprinkler water flowing instead.
 
 ### Configuration
 
@@ -78,8 +103,6 @@ max_depth=16
 # Probability (0.0-1.0) a sprayed fire is put out per check. 1.0 = instant.
 # Set to 0.0 to fall back to vanilla rain's own rate (0.2 + age*0.03 per check).
 extinguish_chance=0.8
-# Game ticks between extinguish checks on a sprayed fire (20 = 1 second).
-check_interval=10
 ```
 
 Edit and restart the server to change the cone's size, reach, and speed.
@@ -91,11 +114,13 @@ extinguish chance on its own tick (every 30–39 game ticks, ~1.5–2 s), the ch
 starts at only 20%, and a fire being rained on never ages so it never climbs.
 That averages ~8–9 seconds with a long tail.
 
-A sprinkler is meant to be brisker, so by default it checks a sprayed fire every
-`check_interval` ticks (twice a second) with a flat `extinguish_chance` (80%),
-putting most fires out in a second or two. Turn it up to `extinguish_chance=1.0`
-for an instant douse, or set `extinguish_chance=0.0` to fall back to the exact
-vanilla rain rate.
+A sprinkler is meant to be brisker, so it uses a flat `extinguish_chance` (80% by
+default) instead of vanilla's climbing-from-20% rate, and doesn't let a sprayed
+fire age. Turn it up to `extinguish_chance=1.0` for a douse on the first check,
+or set `extinguish_chance=0.0` to fall back to the exact vanilla rain rate.
+
+Burning **mobs** are not subject to that cadence: entities are checked every tick,
+so a mob walking into the spray is doused immediately.
 
 ## Single-player
 
@@ -103,43 +128,6 @@ If you drop the mod jar into a singleplayer client's `mods/` folder, it works
 in normal singleplayer and via "Open to LAN". If the world is later moved to a
 server without the mod, sprinklers simply stop working and buttons behave as
 plain vanilla buttons again.
-
-## How it works
-
-Vanilla Minecraft already knows how to put fire out with rain, but only when a
-storm is actually overhead: `FireBlock.tick` gates its rain-extinguish branch
-behind `level.isRaining()`, and `Entity.isInRain()` clears a burning entity's
-fire (playing the extinguish sound). A sprinkler needs to work under a roof with
-clear skies, so this mod supplies the extinguishing itself:
-
-* **`FireBlock.tick`** — for a fire block sitting inside an active sprinkler's
-  cone, the mod runs its own extinguish check, independent of the weather. It
-  uses a configurable flat chance (`extinguish_chance`), reschedules the check at
-  its own faster cadence (`check_interval`) rather than the slow vanilla fire
-  tick, plays the fire-extinguish sound and a puff of white steam so the
-  extinguish is seen and heard, and — like rain — stops that fire from aging
-  or spreading while it is being sprayed. (Setting `extinguish_chance=0.0` falls
-  back to vanilla rain's own `0.2 + age × 0.03` rate.)
-
-* **`Entity.isInRain`** — for a **burning** entity inside the cone it returns
-  `true`, reusing vanilla's rain extinguishing (and its hiss) for mobs and
-  players, with an added puff of steam. This one works regardless of weather
-  because the check runs before vanilla's own rain gate.
-
-An "active sprinkler" is detected by scanning up from the queried position for a
-ceiling-mounted button whose supporting block above supplies water, then
-checking the cone geometry and that the column above is unobstructed. The scan
-is bounded by `max_depth`, and the expensive check only runs for positions that
-are fire or burning entities.
-
-### Troubleshooting
-
-If a sprinkler isn't putting fire out, set `debug=true` in
-`config/firesprinkler.properties` and restart the server. The mod then logs, at
-`INFO` under the logger name `firesprinkler`, every fire tick it inspects: which
-ceiling buttons it found and whether they had a water supply, whether the column
-above the fire was clear or blocked (and at what depth), and each extinguish. The
-trace shows exactly why a given fire is or isn't being reached.
 
 ## License and stuff
 

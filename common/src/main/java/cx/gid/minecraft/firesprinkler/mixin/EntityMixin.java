@@ -1,5 +1,6 @@
 package cx.gid.minecraft.firesprinkler.mixin;
 
+import cx.gid.minecraft.firesprinkler.SprinklerDebug;
 import cx.gid.minecraft.firesprinkler.SprinklerCone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
@@ -42,9 +43,8 @@ public abstract class EntityMixin {
         BlockPos feet = self.blockPosition();
         BlockPos head = BlockPos.containing(feet.getX(), self.getBoundingBox().maxY, feet.getZ());
 
-        cx.gid.minecraft.firesprinkler.SprinklerDebug.log(
-            "isInRain burning entity {} at feet={} head={}", self.getType(), feet, head);
         if (SprinklerCone.isSprayedAt(level, feet) || SprinklerCone.isSprayedAt(level, head)) {
+            SprinklerDebug.log("doused burning {} at {}", self.getType(), feet);
             SprinklerCone.spawnSteam(level, self.getX(), self.getY() + self.getBbHeight() * 0.5, self.getZ());
             cir.setReturnValue(true);
         }
