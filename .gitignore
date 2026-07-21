@@ -19,3 +19,7 @@ build/
 
 # macOS
 .DS_Store
+
+# Local test settings (RCON password, coordinates)
+tests/config.py
+tests/__pycache__

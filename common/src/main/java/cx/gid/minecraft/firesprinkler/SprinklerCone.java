@@ -1,6 +1,5 @@
 package cx.gid.minecraft.firesprinkler;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,9 +27,17 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
  * fed by water: it is waterlogged, or has a water source above it, or has a
  * solid block above it with a water source above _that_.
  * 
- * Currently, the pattern actually works in reverse, working from the fire
- * upwards, so the cone is upside-down. However, it seems _good enough_
- * and obviates the need for excessive caching and multi-pass scans.
+ * The button throws water outward one block per level for the first
+ * {@link SprinklerConfig#maxRadius} levels and it falls straight down
+ * thereafter, so the covered volume is a pyramid that widens to an NxN square
+ * and then continues down. The divergence belongs to the head, not to each
+ * cell of water: nothing spreads sideways once thrown, so a solid block casts
+ * a shadow straight down and a one-block hole in a ceiling passes a one-block
+ * column, exactly as rain would.
+ *
+ * Queries run from the fire rather than the sprinkler -- there is no cheap way
+ * to enumerate sprinklers near a position -- but the geometry is still tested
+ * in the sprinkler's own direction, as a throw followed by a fall.
  *
  * All queries are read-only against the world and are bounded by
  * {@link SprinklerConfig#maxDepth}, so they are cheap enough to run from the
@@ -112,160 +119,158 @@ public final class SprinklerCone {
         return computeSprayedAt(level, config, pos);
     }
 
-    /** The cone search proper, behind {@link #isSprayedAt}'s per-tick cache. */
+    /**
+     * The spray test proper, behind {@link #isSprayedAt}'s per-tick cache.
+     *
+     * Rain logic, from the sprinkler's point of view. The button throws water
+     * outward one block per level for the first {@link SprinklerConfig#maxRadius}
+     * levels, and after that the water just falls. So the covered volume is a
+     * pyramid that widens to an NxN square and then continues straight down:
+     *
+     *      S      (button)         d=0   ....S....
+     *     ###                      d=1   ...###...
+     *    #####                     d=2   ..#####..
+     *   #######                    d=3   .#######.
+     *   #######                    d=4+  .#######.  (no wider)
+     *
+     * The divergence belongs to the head, not to each cell of water: nothing
+     * spreads sideways once it has been thrown. That is what makes a solid
+     * block cast a permanent shadow straight down, and a one-block hole in a
+     * ceiling pass exactly a one-block column -- ordinary rain behaviour, which
+     * is what players expect.
+     *
+     * Rather than flood-fill the volume, we test the single position we were
+     * asked about. Walking up from {@code pos} we look for a button that could
+     * cover it, and for each candidate check the two straight segments the
+     * water would have travelled: the diagonal throw out from the head, then
+     * the vertical fall. Both are simple line walks, so a query costs at most
+     * {@code maxRadius + maxDepth} block reads rather than a whole grid.
+     */
     private static boolean computeSprayedAt(BlockGetter level, SprinklerConfig config, BlockPos pos) {
 
         // Cheap rejection for open-air fire, which is the common case and the
-        // expensive one: with nothing above it the sweep has no reason to stop
-        // early and walks every cell of all maxDepth levels before giving up.
-        //
-        // A sprinkler is a button on the underside of a block, so it needs
-        // something solid overhead. MOTION_BLOCKING is the same "stops falling
-        // things" notion the cone itself uses, and the chunk keeps it as a
-        // maintained heightmap, so one array read per column answers "is there
-        // any ceiling at all here". If no column the cone could span has a
-        // blocking block above pos, there is nowhere for a sprinkler to hang.
+        // expensive one. A sprinkler is a button on the underside of a block,
+        // so it needs something solid overhead. MOTION_BLOCKING is the same
+        // "stops falling things" notion the cone itself uses, and the chunk
+        // keeps it as a maintained heightmap, so one array read per column
+        // answers "is there any ceiling at all here". If no column the cone
+        // could span has a blocking block above pos, there is nowhere for a
+        // sprinkler to hang.
         if (!hasAnyCeilingAbove(level, config, pos)) {
             return false;
         }
 
-        // We're inverting the cone. Rather than starting at a sprinkler and
-        // spraying downwards:
-        //
-        //      W   (waterlogged block)
-        //      ^   (button)
-        //     /|\  (cone)
-        //    /|||\
-        //   /|||||\
-        //   |||||||
-        //   |||||||
-        //    F     (pos - the fire)
-        //
-        // we sweep bottom-up from pos, one level at a time, carrying a grid of
-        // which cells water could have fallen *from* to reach fire:
-        //
-        //   W
-        //   ^
-        //   |||||||
-        //   |||||||
-        //   \|||||/ 
-        //    \|||/
-        //     \|/
-        //      F
-        //
-        // As a result, it acts less like:
-        //
-        //       W                    W
-        //       ^                    ^
-        //      /                     |
-        //     /                      |
-        //    /     and more like:    |
-        //   |                       /
-        //   |                      /
-        //   |                     /
-        //   F                     F
-        //
-        // which is admittedly a little weird.
-    
-        //
-        // Doing it this way rather than testing a single column above pos
-        // matters in both directions: a sprinkler off to one side is still
-        // found when the cell directly above pos is sealed, and a sprinkler
-        // walled off diagonally is correctly *not* found.  However, it isn't
-        // accurate, and seems to over-water a bit, as if each hole in a
-        // barrier acts like a sprinkler of its own to a limited degree.
-        //
-        // We stop as soon as the reachable set empties: no sprinkler above that
-        // point can get water down here, whatever the radius would allow.
+        int x = pos.getX(), y = pos.getY(), z = pos.getZ();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 
-        // Cache pos's coordinates rather than re-calling the accessors.
-        int x = pos.getX(), y0 = pos.getY(), z = pos.getZ();
-
-        // Offsets are indexed [dx+max][dz+max], so the grid is exactly wide
-        // enough for the fully-widened cone. At the default maxRadius of 5
-        // that's 11x11 booleans -- small enough to allocate per call.
-        int max = config.maxRadius;
-        int span = 2 * max + 1;
-        boolean[][] reachable = new boolean[span][span];
-        boolean[][] next = new boolean[span][span];
-
-        // pos is trivially reachable from itself.
-        reachable[max][max] = true;
-
-        // `cursor` is the position we're currently examining, starting at
-        // `pos` and moving around and upwards.
-        BlockPos.MutableBlockPos cursor = pos.mutable();
-
-        // For each vertical level above the fire...
+        // Look for a button on each level above, out to the radius its own
+        // cone would have reached by the time it got down to us.
         for (int depth = 1; depth <= config.maxDepth; depth++) {
-
-            // Set the cursor's Y coordinate to the current level
-            cursor.setY(y0 + depth);
-
-            // Get the radius of the cone
             int radius = config.radiusAtDepth(depth);
-            boolean any = false;
 
-            // Clear the grid of cells that are reachable from this level
-            for (boolean[] row : next) {
-                Arrays.fill(row, false);
-            }
-
-            // For each position in the cone at this level...
             for (int dx = -radius; dx <= radius; dx++) {
-                cursor.setX(x + dx);
-
                 for (int dz = -radius; dz <= radius; dz++) {
-                    cursor.setZ(z + dz);
-
-                    // Water spreads out as it falls, so this cell is only in
-                    // play if one of its neighbours a level down was.
-                    if (!wasReachable(reachable, dx, dz, max)) {
-                        continue;
-                    }
-
-                    // Get the block at the cursor's position
+                    cursor.set(x + dx, y + depth, z + dz);
                     BlockState state = level.getBlockState(cursor);
 
-                    // Reaching here means the path from this cell down to pos
-                    // is clear, so a sprinkler here really does reach pos.
-                    // Deliberately not logged: this runs once per probed cell,
-                    // and vanilla's spread loop probes 54 cells per burning
-                    // block per tick. The extinguish itself is logged instead.
-                    if (isActiveSprinklerAt(level, cursor, state)) {
+                    if (!isActiveSprinklerAt(level, cursor, state)) {
+                        continue;
+                    }
+
+                    // pos sits at offset (-dx,-dz) from this button's axis.
+                    if (reaches(level, cursor, -dx, -dz, depth, config)) {
                         return true;
                     }
-
-                    // An unloaded chunk -- or a position past the world height
-                    // -- reads as VOID_AIR through BlockGetter. Treat that as
-                    // sealed rather than open: we can't see a sprinkler we
-                    // can't load, and quietly spraying out of unloaded space
-                    // would be worse than declining to spray at all.
-                    if (state.is(Blocks.VOID_AIR)) {
-                        continue;
-                    }
-
-                    // Otherwise the spray carries on up through this cell only
-                    // if the block there doesn't stop it.
-                    if (isSolidAsFarAsWeAreConcerned(state)) {
-                        continue;
-                    }
-
-                    next[dx + max][dz + max] = true;
-                    any = true;
                 }
             }
-
-            if (!any) {
-                return false;
-            }
-
-            boolean[][] swap = reachable;
-            reachable = next;
-            next = swap;
         }
 
         return false;
+    }
+
+    /**
+     * True if the sprinkler at {@code head} wets the cell {@code depth} levels
+     * below it at horizontal offset {@code (ox,oz)} from its axis.
+     *
+     * Two segments, matching the two things the water does:
+     *
+     *   1. the _throw_ -- a diagonal ray from the head out to the target
+     *      offset, one block further out per level, and
+     *   2. the _fall_ -- straight down that column to the target level.
+     *
+     * The throw reaches its full offset at depth {@code max(|ox|,|oz|)}, which
+     * is why a cone that has stopped widening still casts vertical shadows:
+     * everything below that depth is pure falling.
+     */
+    private static boolean reaches(BlockGetter level, BlockPos head, int ox, int oz, int depth, SprinklerConfig config) {
+        int cheb = Math.max(Math.abs(ox), Math.abs(oz));
+
+        // Outside the cone at this depth.
+        if (cheb > config.radiusAtDepth(depth)) {
+            return false;
+        }
+
+        int hx = head.getX(), hy = head.getY(), hz = head.getZ();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+
+        // 1. The throw: step outward one block per level until we are under
+        //    the target offset. The head already covers baseRadius on its own
+        //    level, so the first baseRadius rings cost no travel and the throw
+        //    lands at depth cheb - baseRadius.
+        int throwDepth = Math.max(0, cheb - config.baseRadius);
+        int cx = 0, cz = 0;
+        for (int i = 1; i <= throwDepth; i++) {
+            int nx = cx + Integer.signum(ox - cx);
+            int nz = cz + Integer.signum(oz - cz);
+
+            cursor.set(hx + nx, hy - i, hz + nz);
+            if (blocksSpray(level, cursor)) {
+                return false;
+            }
+
+            // On a step that moves in both axes at once, refuse to squeeze
+            // between two blocks set corner to corner: if both of the
+            // orthogonal cells we are cutting past are solid, the water is
+            // walled in, even though the diagonal gap is technically open.
+            if (nx != cx && nz != cz) {
+                cursor.set(hx + nx, hy - i, hz + cz);
+                boolean sideA = blocksSpray(level, cursor);
+                cursor.set(hx + cx, hy - i, hz + nz);
+                boolean sideB = blocksSpray(level, cursor);
+                if (sideA && sideB) {
+                    return false;
+                }
+            }
+
+            cx = nx;
+            cz = nz;
+        }
+
+        // 2. The fall: straight down the target column to the target level.
+        //    Starts below wherever the throw left off (at least one level
+        //    down, so a button directly overhead still has to see clear air).
+        for (int i = throwDepth + 1; i <= depth; i++) {
+            cursor.set(hx + ox, hy - i, hz + oz);
+            if (blocksSpray(level, cursor)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * True if this cell stops the spray -- either a solid block, or a position
+     * we cannot see into.
+     *
+     * An unloaded chunk (or a position past the world height) reads as
+     * VOID_AIR through BlockGetter. Treat that as sealed rather than open: we
+     * cannot see a sprinkler we cannot load, and quietly spraying out of
+     * unloaded space would be worse than declining to spray at all.
+     */
+    private static boolean blocksSpray(BlockGetter level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return state.is(Blocks.VOID_AIR) || isSolidAsFarAsWeAreConcerned(state);
     }
 
     /**
@@ -310,51 +315,6 @@ public final class SprinklerCone {
         return false;
     }
 
-    /**
-     * True if water could have arrived at horizontal offset {@code (dx,dz)}
-     * from the level below.
-     *
-     * Water spreads *outwards* as it falls. Read bottom-up, that means a cell
-     * can only be fed from the cell directly below it or from one nearer the
-     * axis -- never from one further out, which would require water to have
-     * moved inwards on the way down. So we look at the (up to) four cells
-     * between this offset and the centre, inclusive.
-     *
-     * Allowing the full 3x3 neighbourhood instead is wrong in a way that is
-     * easy to miss: it lets the fill travel sideways within a level, so a
-     * single block never seals anything -- the sweep simply flows around it
-     * and carries on up, and a sprinkler directly above a covered fire still
-     * reaches it. Restricting to inward steps keeps the covered volume an
-     * actual cone.
-     *
-     * Diagonal movement is still allowed (both axes may step at once), so the
-     * cone stays square and beacon-like rather than losing its corners.
-     */
-    private static boolean wasReachable(boolean[][] prev, int dx, int dz, int max) {
-        int span = prev.length;
-
-        // Step towards the axis on each axis independently; signum is 0 when
-        // already centred, so the loop naturally collapses to fewer cells.
-        int stepX = Integer.signum(dx);
-        int stepZ = Integer.signum(dz);
-
-        for (int ox = 0; ox <= 1; ox++) {
-            int ix = dx - stepX * ox + max;
-            if (ix < 0 || ix >= span) {
-                continue;
-            }
-            for (int oz = 0; oz <= 1; oz++) {
-                int iz = dz - stepZ * oz + max;
-                if (iz < 0 || iz >= span) {
-                    continue;
-                }
-                if (prev[ix][iz]) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
 
     /**
      * True if an active sprinkler button occupies the block at the given

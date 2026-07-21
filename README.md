@@ -72,22 +72,11 @@ water the way a roof stops rain — full blocks, slabs, stairs, fences, closed
 trapdoors. Open trapdoors, string, torches, carpets, flowers, and
 water/waterlogged blocks all let the spray through.
 
-Note the spray currently spreads sideways by up to a block per level as it
-falls, rather than falling straight down. A fire tucked under a *single*
-sheltering block can therefore still be reached from the gap beside it, and a
-hole in a ceiling wets a wider area below than the hole itself. This is known
-over-reach rather than intended behaviour, and will tighten to a true cone.
-
-### What it *actually* does
-
-Due to the way Minecraft data is structured, it'd be inefficient to start from
-the sprinklers and find fires to extinguish. Instead, we start at the fires and
-work upwards to find any sprinklers that could existinguish them.  This means
-that the cone is reversed.  As a result, the sprinklers tend to extinguish
-more than you'd expect from the definition, working around obstructions.
-
-It seems to roughly work and it doesn't seem unusual. You can hand-wave it as
-the sprinkler water flowing instead.
+The button throws the water outward as it leaves, one block per level, until
+the cone reaches its full width; below that the water simply falls. So a solid
+block casts a dry shadow straight down, and a hole in a ceiling wets a column
+the width of the hole — except where another sprinkler's cone reaches in around
+the obstruction. See [`tests/`](tests/) for the geometry checked in-game.
 
 ### Configuration
 
