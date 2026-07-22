@@ -1,0 +1,50 @@
+"""
+Local settings for the spray geometry tests.
+
+Copy to config.py and edit. config.py is gitignored, so your RCON password and
+your own test coordinates stay out of the repo.
+"""
+
+# --- RCON connection to the dev server -------------------------------------
+# server.properties needs enable-rcon=true, rcon.password and rcon.port.
+RCON_HOST = "localhost"
+RCON_PASSWORD = "changeme"
+RCON_PORT = 25575
+
+# --- Where the tests build ---------------------------------------------------
+# The sprinkler button. Put a waterlogged block at SY+1 and a ceiling-mounted
+# button at SY, and leave the space below clear.
+#
+# THE AREA AROUND THIS IS DESTROYED AND REBUILT ON EVERY RUN. Use a disposable
+# world, and keep it well away from anything you care about.
+SX, SY, SZ = 927, 69, 2306
+
+# Fires are lit at FLOOR_Y + 1, on a netherrack floor the tests lay themselves
+# (fire on stone burns out on its own, which would be indistinguishable from
+# the sprinkler putting it out).
+FLOOR_Y = 63
+
+# --- Mod configuration being tested ------------------------------------------
+# These must match config/firesprinkler.properties on the server: the model
+# predicts from them, so a mismatch shows up as every case failing at once.
+MAX_RADIUS = 5
+BASE_RADIUS = 1
+
+# --- Blocks the tests build with ---------------------------------------------
+# The waterlogged block a sprinkler hangs from, and the button itself. Any
+# waterloggable block that holds its water without flooding works; copper
+# grates and mangrove roots are convenient because a button can be placed
+# underneath them.
+SUPPORT_BLOCK = "oxidized_copper_grate[waterlogged=true]"
+BUTTON_BLOCK = "stone_button[face=ceiling]"
+
+# What obstructions are built from, and what fires burn on. The floor must be a
+# block fire burns on forever (netherrack): on anything else an unsprayed fire
+# expires by itself and the results are meaningless.
+OBSTRUCTION_BLOCK = "cobbled_deepslate"
+FLOOR_BLOCK = "netherrack"
+
+# A roof is built high above the test area so weather cannot reach it: vanilla
+# rain extinguishes fire by itself, which would look exactly like the sprinkler
+# working. Glass keeps the area visible while you watch a run.
+ROOF_BLOCK = "glass"

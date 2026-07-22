@@ -28,23 +28,27 @@ public final class SprinklerConfig {
     public final int maxDepth;
     /** Per-check probability that a sprayed fire is extinguished (replaces vanilla's 0.2+age*0.03). */
     public final double extinguishChance;
+
     /** When true, the mod logs detection/extinguish diagnostics to the server console. */
     public final boolean debug;
 
-    public final int steamSize;
-    public final float steamSpread;
-    public final float steamSpeed;
+    /** Steam particles emitted when extinguished. */
+    public final int steamParticleCount;
+    /** How wide the spread of the steam particles is. */
+    public final float steamParticleSpread;
+    /** How fast the steam particles move. */
+    public final float steamParticleSpeed;
 
-    private SprinklerConfig(int baseRadius, int maxRadius, int maxDepth, double extinguishChance, int steamSize, float steamSpread, float steamSpeed, boolean debug) {
+    private SprinklerConfig(int baseRadius, int maxRadius, int maxDepth, double extinguishChance, int steamParticleCount, float steamParticleSpread, float steamParticleSpeed, boolean debug) {
         this.baseRadius = baseRadius;
         this.maxRadius = maxRadius;
         this.maxDepth = maxDepth;
         this.extinguishChance = extinguishChance;
         this.debug = debug;
 
-        this.steamSize = steamSize;
-        this.steamSpread = steamSpread;
-        this.steamSpeed = steamSpeed;
+        this.steamParticleCount = steamParticleCount;
+        this.steamParticleSpread = steamParticleSpread;
+        this.steamParticleSpeed = steamParticleSpeed;
     }
 
     // Defaults reproduce the spec: 3x3 on the button level, widening to 11x11,
@@ -59,9 +63,12 @@ public final class SprinklerConfig {
     // two, 1.0 on the first.
     private static final double DEFAULT_EXTINGUISH_CHANCE = 0.8;
 
-    private static final int DEFAULT_STEAM_SIZE = 32;
-    private static final float DEFAULT_STEAM_SPREAD = 0.5F;
-    private static final float DEFAULT_STEAM_SPEED = 0;
+    // Configuration of the visual steam particles emitted when extinguished.
+    // These are exposed in the config file, but not documented, to make it
+    // simpler to configure the mod in necessary ways.
+    private static final int DEFAULT_STEAM_PARTICLE_COUNT = 32;
+    private static final float DEFAULT_STEAM_PARTICLE_SPREAD = 0.5F;
+    private static final float DEFAULT_STEAM_PARTICLE_SPEED = 0;
 
     private static volatile SprinklerConfig instance;
 
@@ -98,16 +105,16 @@ public final class SprinklerConfig {
         
         double extinguishChance = readDouble(props, "extinguish_chance", DEFAULT_EXTINGUISH_CHANCE, 0.0, 1.0);
 
-        int steamSize = readInt(props, "steam_size", DEFAULT_STEAM_SIZE, 0, 32);
-        float steamSpread = (float)readDouble(props, "steam_spread", DEFAULT_STEAM_SPREAD, 0.0F, 1.0F);
-        float steamSpeed = (float)readDouble(props, "steam_speed", DEFAULT_STEAM_SPEED, 0.0F, 1.0F);
+        int steamParticleCount = readInt(props, "steam_particle_count", DEFAULT_STEAM_PARTICLE_COUNT, 0, 32);
+        float steamParticleSpread = (float)readDouble(props, "steam_particle_spread", DEFAULT_STEAM_PARTICLE_SPREAD, 0.0F, 1.0F);
+        float steamParticleSpeed = (float)readDouble(props, "steam_particle_speed", DEFAULT_STEAM_PARTICLE_SPEED, 0.0F, 1.0F);
 
         boolean debug = Boolean.parseBoolean(props.getProperty("debug", "false").trim());
 
         SprinklerConfig config = new SprinklerConfig(
             baseRadius, maxRadius, maxDepth,
             extinguishChance,
-            steamSize, steamSpread, steamSpeed,
+            steamParticleCount, steamParticleSpread, steamParticleSpeed,
             debug
         );
 
@@ -164,14 +171,13 @@ public final class SprinklerConfig {
                 props.setProperty("max_radius", Integer.toString(config.maxRadius));
                 props.setProperty("max_depth", Integer.toString(config.maxDepth));
                 props.setProperty("extinguish_chance", Double.toString(config.extinguishChance));
-                props.setProperty("debug", Boolean.toString(config.debug));
                 props.store(out,
                     "Fire Sprinkler spray-cone limits.\n"
                     + "base_radius:       Chebyshev radius on the button's own level (0 = just the button cell; 1 = 3x3).\n"
                     + "max_radius:        radius the cone widens to before it stops widening (5 = 11x11).\n"
                     + "max_depth:         deepest level below the button the spray can reach, in blocks.\n"
-                    + "extinguish_chance: probability (0.0-1.0) a sprayed fire is put out per check (1.0 = instant).\n"
-                    + "debug:             true to log detection/extinguish diagnostics to the server console.");
+                    + "extinguish_chance: probability (0.0-1.0) a sprayed fire is put out per check (1.0 = instant)."
+                );
             }
         } catch (IOException ignored) {
             // A missing config file simply means defaults are used next launch.
