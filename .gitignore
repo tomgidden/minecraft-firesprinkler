@@ -2,6 +2,8 @@
 build/
 */build/
 
+*/bin/
+
 # Gradle caches
 .gradle/
 */.gradle/
