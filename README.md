@@ -1,6 +1,8 @@
 # Fire Sprinkler
 
-**Minecraft 26.1.2 - 26.x; Fabric and NeoForge.**
+![A fire extinguished under a "sprinkler"](screenshot.jpg)
+
+**Minecraft 26.x; Fabric and NeoForge.**
 
 This small server-side-only mod turns a button into a working fire sprinkler.
 Place a button on the **underside** of a block that is waterlogged (or is a
