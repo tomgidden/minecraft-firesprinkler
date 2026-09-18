@@ -6,6 +6,7 @@ import java.util.Map;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
@@ -431,19 +432,24 @@ public final class SprinklerCone {
      * or to carry a water supply down to the block below.
      *
      * We use vanilla rain's own blocker rule so the sprinkler shields the same
-     * way rain does: a block stops the spray if it {@code blocksMotion()} (has
-     * a solid collision box). Open trapdoors, string, torches, carpets and
-     * flowers therefore let the spray through, while closed trapdoors, slabs,
-     * stairs, fences and full blocks stop it.
+     * way rain does: a block stops the spray if it blocks motion (has a solid
+     * collision box). Open trapdoors, string, torches, carpets and flowers
+     * therefore let the spray through, while closed trapdoors, slabs, stairs,
+     * fences and full blocks stop it.
      *
-     * Both {@code BlockState::blocksMotion()} and {@code BlockState::isSolid()}
-     * are deprecated, but vanilla rain uses the MOTION_BLOCKING heightmap which
-     * itself uses blocksMotion(). Once there's a different rain implementation,
-     * we can change this.
+     * MC 26.3 removed {@code BlockState::blocksMotion()} and replaced it with
+     * the {@code #minecraft:blocks_motion} block tag, which the MOTION_BLOCKING
+     * heightmap (and suffocation, enderman teleport, fluid flow and the rest)
+     * now tests instead. The old method was hardcoded as "solid, except cobweb
+     * and bamboo sapling"; the tag says the same thing but is data-driven, so a
+     * datapack can now change what shields the spray.
+     *
+     * This ties us to 26.3+: the tag doesn't exist in 26.1.2 or 26.2, so this
+     * class would fail to load there. Those versions are served by the 26.0.2
+     * release instead.
      */
     private static boolean isSolidAsFarAsWeAreConcerned(BlockState state) {
-        @SuppressWarnings("deprecation") boolean blocksMotion = state.blocksMotion();
-        return blocksMotion;
+        return state.is(BlockTags.BLOCKS_MOTION);
     }
 
     /**

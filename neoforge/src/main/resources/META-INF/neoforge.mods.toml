@@ -15,13 +15,13 @@ Place a button on the underside of a waterlogged block (or a block below a water
 [[dependencies.firesprinkler]]
 modId = "neoforge"
 type = "required"
-versionRange = "[26.1.2,27)"
+versionRange = "[26.3,27)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.firesprinkler]]
 modId = "minecraft"
 type = "required"
-versionRange = "[26.1.2,27)"
+versionRange = "[26.3,27)"
 ordering = "NONE"
 side = "BOTH"
