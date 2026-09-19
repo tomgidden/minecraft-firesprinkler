@@ -39,6 +39,11 @@ jobs:
       curseforge: ${{ inputs.curseforge || false }}
       # Passed explicitly: a called workflow cannot see the caller's `vars`.
       # (The tokens need no such help -- `secrets: inherit` covers them.)
-      modrinth_id: ${{ vars.MODRINTH_ID || secrets.MODRINTH_ID }}
-      curseforge_id: ${{ vars.CURSEFORGE_ID || secrets.CURSEFORGE_ID }}
+      #
+      # Only `github, needs, strategy, matrix, inputs, vars` are available
+      # here -- `secrets` is NOT -- so a repo holding its ids as secrets
+      # instead leaves these empty and the shared workflow falls back to
+      # secrets.*_ID on its side, where the context does exist.
+      modrinth_id: ${{ vars.MODRINTH_ID }}
+      curseforge_id: ${{ vars.CURSEFORGE_ID }}
     secrets: inherit
