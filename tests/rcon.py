@@ -1,4 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["mcrcon"]
+# ///
 """
 Not a test: a hand tool for poking at the server while diagnosing one.
 

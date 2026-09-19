@@ -1,4 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["mcrcon"]
+# ///
 """Floors with gaps, diagonal pinches, and partial coverage."""
 from functions import run_case, summarise, SX, SY, SZ, FIRE_Y
 

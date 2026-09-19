@@ -13,8 +13,16 @@ in the widening part of the cone.
 ## Requirements
 
 A dev server with the mod installed and RCON enabled (`server.properties`:
-`enable-rcon=true`, `rcon.password=…`, `rcon.port=25575`), and `pip install
-mcrcon`.
+`enable-rcon=true`, `rcon.password=…`, `rcon.port=25575`), and
+[uv](https://docs.astral.sh/uv/).
+
+Each script carries its own PEP 723 dependency block, so there is nothing to
+install: run them with `uv run --script`, and `mcrcon` is fetched into a cached
+per-script environment.
+
+```sh
+uv run --script tests_basic.py
+```
 
 ## Setup
 
@@ -47,14 +55,14 @@ sprinklers, light fires, read back, compare). Each suite is then just its list
 of cases.
 
 ```sh
-python3 tests_basic.py             # clear cone, single obstructions
-python3 tests_floors.py            # floors with gaps, diagonal pinches
-python3 tests_offaxis.py 0 15      # off-cardinal gaps (slice by index)
-python3 tests_seam.py              # the join between the throw and the fall
-python3 tests_multi.py             # several sprinklers, unobstructed
-python3 tests_multi_obstructed.py  # several sprinklers with obstructions
-python3 tests_multi_heights.py     # sprinklers at differing heights
-python3 tests_pruning.py           # the heightmap column pruning
+uv run --script tests_basic.py             # clear cone, single obstructions
+uv run --script tests_floors.py            # floors with gaps, diagonal pinches
+uv run --script tests_offaxis.py 0 15      # off-cardinal gaps (slice by index)
+uv run --script tests_seam.py              # the join between the throw and the fall
+uv run --script tests_multi.py             # several sprinklers, unobstructed
+uv run --script tests_multi_obstructed.py  # several sprinklers with obstructions
+uv run --script tests_multi_heights.py     # sprinklers at differing heights
+uv run --script tests_pruning.py           # the heightmap column pruning
 ```
 
 A case is one call:
@@ -74,7 +82,7 @@ extinguished on vanilla's 30–39 tick cadence.
 diagnosing one:
 
 ```sh
-python3 rcon.py "time query gametime" "setblock 927 64 2306 fire"
+uv run --script rcon.py "time query gametime" "setblock 927 64 2306 fire"
 ```
 
 ## Reading a failure

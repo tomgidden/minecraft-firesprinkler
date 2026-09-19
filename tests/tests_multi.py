@@ -1,4 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["mcrcon"]
+# ///
 """Several sprinklers at once: the sprayed area should be their union."""
 from functions import run_case, summarise, SX, SY, SZ
 
